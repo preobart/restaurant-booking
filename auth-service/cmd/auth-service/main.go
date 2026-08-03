@@ -17,10 +17,10 @@ import (
 	"restaurant-booking/auth-service/internal/adapter/postgres"
 	"restaurant-booking/auth-service/internal/adapter/rabbitmq"
 	httpcontroller "restaurant-booking/auth-service/internal/controller/http"
+	internalgetuser "restaurant-booking/auth-service/internal/features/internal-get-user"
 	"restaurant-booking/auth-service/internal/features/login"
 	"restaurant-booking/auth-service/internal/features/me"
 	"restaurant-booking/auth-service/internal/features/register"
-	internalgetuser "restaurant-booking/auth-service/internal/features/internal-get-user"
 	"restaurant-booking/auth-service/pkg/jwt"
 )
 

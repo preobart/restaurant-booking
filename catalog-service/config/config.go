@@ -10,10 +10,10 @@ import (
 )
 
 type Config struct {
-	Postgres       postgres.Config
-	HTTPAddr       string
-	JWTSecret      string
-	RabbitMQURL    string
+	Postgres    postgres.Config
+	HTTPAddr    string
+	JWTSecret   string
+	RabbitMQURL string
 }
 
 func LoadConfig() (Config, error) {
@@ -25,9 +25,9 @@ func LoadConfig() (Config, error) {
 		Postgres: postgres.Config{
 			DBDSN: getEnv("CATALOG_DB_DSN", ""),
 		},
-		HTTPAddr:       getEnv("CATALOG_HTTP_ADDR", ":8082"),
-		JWTSecret:      getEnv("JWT_SECRET", "dev-secret-change-me"),
-		RabbitMQURL:    getEnv("RABBITMQ_URL", ""),
+		HTTPAddr:    getEnv("CATALOG_HTTP_ADDR", ":8082"),
+		JWTSecret:   getEnv("JWT_SECRET", "dev-secret-change-me"),
+		RabbitMQURL: getEnv("RABBITMQ_URL", ""),
 	}, nil
 }
 

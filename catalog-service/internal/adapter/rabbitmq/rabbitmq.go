@@ -92,4 +92,3 @@ func (c *Consumer) Consume(ctx context.Context, queue string, handler func(conte
 		}
 	}
 }
-

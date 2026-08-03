@@ -66,4 +66,3 @@ func (p *Publisher) PublishJSON(ctx context.Context, exchange string, routingKey
 		},
 	)
 }
-
