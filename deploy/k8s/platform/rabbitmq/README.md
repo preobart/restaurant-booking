@@ -26,7 +26,8 @@ cert-manager 1.21 поддерживает и тестирует Kubernetes 1.35
 
 ## Состав каталога
 
-- `00-external-secret.yaml` — подключает External Secrets Operator к Yandex Lockbox и создаёт `platform/lab-rabbitmq-default-user`;
+- `../external-secrets/00-cluster-secret-store.yaml` — общий доступ External Secrets Operator к Yandex Lockbox;
+- `00-external-secret.yaml` — создаёт `platform/lab-rabbitmq-default-user` из Yandex Lockbox;
 - `10-rabbitmq-cluster.yaml` — создаёт три RabbitMQ-реплики и три PVC;
 - `20-pod-disruption-budget.yaml` — требует, чтобы при добровольных disruption оставались доступны минимум две реплики.
 
@@ -77,6 +78,8 @@ kubectl get pods -n rabbitmq-system
 ## 4. Синхронизировать учётные данные из Lockbox
 
 ```bash
+kubectl apply -f deploy/k8s/platform/external-secrets/00-cluster-secret-store.yaml
+kubectl wait --for=condition=Ready clustersecretstore/cluster-secret-store --timeout=2m
 kubectl apply -f deploy/k8s/platform/rabbitmq/00-external-secret.yaml
 ```
 
@@ -202,6 +205,8 @@ kubectl delete pvc -n platform \
 ```bash
 kubectl delete -f deploy/k8s/platform/rabbitmq/00-external-secret.yaml
 ```
+
+Не удаляйте общий `ClusterSecretStore/cluster-secret-store`, пока его использует Valkey или другой `ExternalSecret`.
 
 В интерфейсе Compute Cloud убедитесь, что три диска RabbitMQ исчезли. StorageClass `yc-network-ssd` использует reclaim policy `Delete`, но проверка отсутствия дисков обязательна.
 
