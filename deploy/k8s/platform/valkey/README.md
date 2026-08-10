@@ -14,7 +14,7 @@ Pod -> DNS -> TLS 6380 -> Managed Valkey
 - кластер Valkey: `c9q09s84iqj5vgc6gkte`;
 - writable-FQDN: `c-c9q09s84iqj5vgc6gkte.rw.mdb.yandexcloud.net`;
 - TLS-порт: `6380`;
-- Lockbox secret ID: `e6qa73r663u29svikf0m`;
+- Lockbox secret ID: `e6qa6q4v5gu33fvi3rkl`;
 - свойство Lockbox: `redis_password`;
 - Kubernetes Secret: `production/lab-valkey-credentials`;
 - подсеть Valkey: `10.20.1.0/24`;
@@ -35,7 +35,7 @@ Pod -> DNS -> TLS 6380 -> Managed Valkey
 В консоли Yandex Cloud откройте:
 
 ```text
-Lockbox -> секрет e6qa73r663u29svikf0m -> Права доступа
+Lockbox -> секрет e6qa6q4v5gu33fvi3rkl -> Права доступа
 ```
 
 У сервисного аккаунта `lab-external-secrets` должна быть роль `lockbox.payloadViewer` на этом конкретном секрете.
@@ -289,7 +289,7 @@ kubectl get clustersecretstore cluster-secret-store
 
 Проверьте:
 
-- роль `lockbox.payloadViewer` у `lab-external-secrets` на secret `e6qa73r663u29svikf0m`;
+- роль `lockbox.payloadViewer` у `lab-external-secrets` на secret `e6qa6q4v5gu33fvi3rkl`;
 - точное имя свойства `redis_password`;
 - наличие `external-secrets/sa-creds`;
 - готовность Pod External Secrets Operator.

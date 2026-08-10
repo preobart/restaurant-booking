@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Целевой namespace — только `production`.
-- Lockbox secret ID — `e6qa73r663u29svikf0m`; property — `redis_password`.
+- Lockbox secret ID — `e6qa6q4v5gu33fvi3rkl`; property — `redis_password`.
 - Writable-FQDN — `c-c9q09s84iqj5vgc6gkte.rw.mdb.yandexcloud.net`.
 - Использовать только TLS-порт `6380`; не использовать `6379` и insecure-режим.
 - Egress разрешать только в `10.20.1.0/24` на TCP `6380`.
@@ -124,7 +124,7 @@ git commit -m "refactor: share external secrets store"
 - Create: `deploy/k8s/platform/valkey/yandex-internal-root-ca.pem`
 
 **Interfaces:**
-- Consumes: `ClusterSecretStore/cluster-secret-store`, Lockbox secret `e6qa73r663u29svikf0m`, namespace `production` and existing DNS-egress policy.
+- Consumes: `ClusterSecretStore/cluster-secret-store`, Lockbox secret `e6qa6q4v5gu33fvi3rkl`, namespace `production` and existing DNS-egress policy.
 - Produces: Secret `production/lab-valkey-credentials`, ConfigMap `production/lab-valkey-connection`, ConfigMap `production/yandex-internal-root-ca`, NetworkPolicy `production/allow-valkey-egress`.
 
 - [ ] **Step 1: Сохранить официальный CA bundle Yandex Cloud**
@@ -185,7 +185,7 @@ spec:
   data:
     - secretKey: password
       remoteRef:
-        key: e6qa73r663u29svikf0m
+        key: e6qa6q4v5gu33fvi3rkl
         property: redis_password
 ```
 
@@ -335,7 +335,7 @@ ruby -e 'require "yaml"; ARGV.each { |f| YAML.load_stream(File.read(f)) }' \
   deploy/k8s/platform/valkey/00-external-secret.yaml \
   deploy/k8s/platform/valkey/10-connection-config.yaml \
   deploy/k8s/platform/valkey/20-network-policy.yaml
-rg -n 'e6qa73r663u29svikf0m|redis_password|c-c9q09s84iqj5vgc6gkte|10\.20\.1\.0/24|6380' \
+rg -n 'e6qa6q4v5gu33fvi3rkl|redis_password|c-c9q09s84iqj5vgc6gkte|10\.20\.1\.0/24|6380' \
   deploy/k8s/platform/valkey
 test "$(rg -c 'BEGIN CERTIFICATE' deploy/k8s/platform/valkey/yandex-internal-root-ca.pem)" = "2"
 if rg -n '(?i)(redis_password\s*[:=]\s*[^r]|password\s*:\s*[[:alnum:]]{12,}|private key|authorized_key)' deploy/k8s/platform/valkey; then
@@ -373,7 +373,7 @@ git commit -m "feat: add managed valkey connection resources"
 
 Create `deploy/k8s/platform/valkey/README.md` in Russian. Start with the exact resource inventory and instruct the user to verify:
 
-1. `Lockbox → e6qa73r663u29svikf0m → Права доступа`: service account `lab-external-secrets` has `lockbox.payloadViewer` on this secret.
+1. `Lockbox → e6qa6q4v5gu33fvi3rkl → Права доступа`: service account `lab-external-secrets` has `lockbox.payloadViewer` on this secret.
 2. `Virtual Private Cloud → Группы безопасности → lab-valkey`: inbound TCP `6380`, source security group `lab-k8s-nodes`.
 
 Explicitly state that public access, the Cloud Shell IP, and the user's home IP are not required.
@@ -609,7 +609,7 @@ git commit -m "docs: add managed valkey operating guide"
 Run all commands from Task 3 Step 5 plus:
 
 ```bash
-git grep -n 'e6qa73r663u29svikf0m'
+git grep -n 'e6qa6q4v5gu33fvi3rkl'
 git grep -n 'c-c9q09s84iqj5vgc6gkte.rw.mdb.yandexcloud.net'
 git grep -n '10.20.1.0/24'
 openssl verify \

@@ -16,7 +16,7 @@
 - группа безопасности Valkey: `lab-valkey`;
 - группа безопасности узлов Kubernetes: `lab-k8s-nodes`;
 - подсеть хоста Valkey `lab-subnet-a`: `10.20.1.0/24`;
-- Lockbox secret ID: `e6qa73r663u29svikf0m`;
+- Lockbox secret ID: `e6qa6q4v5gu33fvi3rkl`;
 - имя свойства в Lockbox: `redis_password`;
 - сервисный аккаунт External Secrets Operator: `lab-external-secrets`;
 - существующий `ClusterSecretStore`: `cluster-secret-store`;
@@ -74,7 +74,7 @@ Yandex Lockbox
 
 Перед применением Kubernetes-манифестов пользователь вручную выполняет в Yandex Cloud UI два действия:
 
-1. выдаёт сервисному аккаунту `lab-external-secrets` роль `lockbox.payloadViewer` только на secret `e6qa73r663u29svikf0m`;
+1. выдаёт сервисному аккаунту `lab-external-secrets` роль `lockbox.payloadViewer` только на secret `e6qa6q4v5gu33fvi3rkl`;
 2. проверяет в `lab-valkey` входящее правило TCP `6380`, где источник — группа безопасности `lab-k8s-nodes`.
 
 Публичный доступ к Valkey не включается. CIDR Cloud Shell и домашний публичный IP для этого подключения не требуются: к Valkey обращаются приватные worker-узлы Kubernetes.
@@ -130,7 +130,7 @@ deploy/k8s/platform/valkey/
 Локальная проверка файлов должна подтвердить:
 
 - все YAML разбираются корректно;
-- `ExternalSecret` ссылается на `cluster-secret-store`, secret ID `e6qa73r663u29svikf0m` и property `redis_password`;
+- `ExternalSecret` ссылается на `cluster-secret-store`, secret ID `e6qa6q4v5gu33fvi3rkl` и property `redis_password`;
 - ни один файл не содержит пароль или авторизованный ключ;
 - целевой Secret создаётся только в `production`;
 - host равен writable-FQDN, port равен `6380`, TLS включён;
