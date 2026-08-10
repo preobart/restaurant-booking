@@ -34,7 +34,7 @@ The selected component versions are:
 - RabbitMQ Server `4.3.1-management`;
 - External Secrets Operator with Yandex Lockbox support, Yandex Cloud Marketplace chart `2.5.0-2`.
 
-The operator and cert-manager versions are pinned in the operator instructions. The repository will not copy their large upstream manifests. External Secrets Operator will be installed through the Yandex Cloud Marketplace UI.
+The operator and cert-manager versions are pinned in the operator instructions. The repository will not copy their large upstream manifests. External Secrets Operator is installed from the official Yandex Cloud Marketplace OCI Helm chart `2.5.0-2`. The Marketplace UI was attempted first, but its product-access backend returned repeated HTTP 503 and internal gRPC timeouts; using the published chart keeps the same Yandex integration while making the installation reproducible.
 
 cert-manager is included because RabbitMQ Cluster Operator versions `2.20` and later require it for admission-webhook certificates. It is a reusable platform prerequisite for later TLS work.
 
@@ -191,7 +191,7 @@ The manual deployment order is:
 
 1. Create `lab-external-secrets` and `lab-rabbitmq-admin` in the Yandex Cloud UI.
 2. Grant the service account payload-view access only to that secret.
-3. Install External Secrets Operator from Yandex Cloud Marketplace into `external-secrets`.
+3. Install External Secrets Operator chart `2.5.0-2` from `oci://cr.yandex/yc-marketplace/yandex-cloud/external-secrets/charts/external-secrets` into `external-secrets` and verify the Helm release, `sa-creds`, and CRDs.
 4. Install pinned cert-manager `v1.21.1` and wait until its webhook is ready.
 5. Install pinned RabbitMQ Cluster Operator `v2.22.3` and wait until its webhook is ready.
 6. Apply `00-external-secret.yaml` and wait for `lab-rabbitmq-default-user` to exist.
