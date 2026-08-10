@@ -16,3 +16,4 @@ vendor/
 .vscode/
 *.swp
 .DS_Store
+.worktrees/
