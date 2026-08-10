@@ -526,16 +526,16 @@ kubectl wait \
   --timeout=3m
 
 kubectl exec -n production lab-valkey-smoke-test -- sh -c \
-  'redis-cli --host "$VALKEY_HOST" --port "$VALKEY_PORT" --user "$VALKEY_USERNAME" --tls --cacert /etc/yandex-ca/ca.crt PING'
+  'redis-cli -h "$VALKEY_HOST" -p "$VALKEY_PORT" --user "$VALKEY_USERNAME" --tls --cacert /etc/yandex-ca/ca.crt PING'
 
 kubectl exec -n production lab-valkey-smoke-test -- sh -c \
-  'redis-cli --host "$VALKEY_HOST" --port "$VALKEY_PORT" --user "$VALKEY_USERNAME" --tls --cacert /etc/yandex-ca/ca.crt SET restaurant-booking:smoke-test ok EX 60'
+  'redis-cli -h "$VALKEY_HOST" -p "$VALKEY_PORT" --user "$VALKEY_USERNAME" --tls --cacert /etc/yandex-ca/ca.crt SET restaurant-booking:smoke-test ok EX 60'
 
 kubectl exec -n production lab-valkey-smoke-test -- sh -c \
-  'redis-cli --host "$VALKEY_HOST" --port "$VALKEY_PORT" --user "$VALKEY_USERNAME" --tls --cacert /etc/yandex-ca/ca.crt GET restaurant-booking:smoke-test'
+  'redis-cli -h "$VALKEY_HOST" -p "$VALKEY_PORT" --user "$VALKEY_USERNAME" --tls --cacert /etc/yandex-ca/ca.crt GET restaurant-booking:smoke-test'
 
 kubectl exec -n production lab-valkey-smoke-test -- sh -c \
-  'redis-cli --host "$VALKEY_HOST" --port "$VALKEY_PORT" --user "$VALKEY_USERNAME" --tls --cacert /etc/yandex-ca/ca.crt DEL restaurant-booking:smoke-test'
+  'redis-cli -h "$VALKEY_HOST" -p "$VALKEY_PORT" --user "$VALKEY_USERNAME" --tls --cacert /etc/yandex-ca/ca.crt DEL restaurant-booking:smoke-test'
 
 kubectl delete pod lab-valkey-smoke-test -n production
 ```
