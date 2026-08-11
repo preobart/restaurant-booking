@@ -220,6 +220,57 @@ kubectl delete \
 
 Постоянное правило `restaurant-booking-staging` оставьте.
 
+## 8. Создать канал уведомлений Yandex Monitoring
+
+В каталоге с workspace откройте:
+
+```text
+Monitoring -> Каналы уведомлений -> Создать канал
+```
+
+Укажите:
+
+```text
+Имя: lab-alerts-email
+Метод: Email
+Получатель: ваш аккаунт Yandex Cloud
+```
+
+Получатель должен иметь роль `monitoring.viewer` на каталог и включённые уведомления Monitoring в настройках своего аккаунта.
+
+## 9. Загрузить конфигурацию Managed Alertmanager
+
+Файл `deploy/monitoring/yandex/alertmanager.yaml` маршрутизирует alerts с меткой `severity="warning"` в канал `lab-alerts-email`. Alerts без этой метки никуда не отправляются.
+
+Откройте:
+
+```text
+Monitoring -> Prometheus -> workspace mond7en8jco98a3qtrg6
+-> Конфигурация Alert manager
+```
+
+Нажмите `Загрузить файл конфигурации` и выберите:
+
+```text
+deploy/monitoring/yandex/alertmanager.yaml
+```
+
+После успешной загрузки повторно примените временное тестовое правило:
+
+```bash
+kubectl apply \
+  -f deploy/k8s/monitoring/90-test-alert-rule.yaml
+```
+
+Подождите до двух минут и проверьте письмо. После получения уведомления удалите тестовое правило:
+
+```bash
+kubectl delete \
+  -f deploy/k8s/monitoring/90-test-alert-rule.yaml
+```
+
+При удалении тестового правила может прийти уведомление о разрешении alert — это ожидаемо.
+
 ## Что будет дальше
 
-После проверки состояния `FIRING` создаётся канал уведомлений в Yandex Monitoring и настраивается маршрутизация Alertmanager. Затем можно переходить к Application Load Balancer.
+После проверки email-уведомления можно переходить к Application Load Balancer. Application metrics остаются отдельным улучшением после реализации `/metrics` в сервисах.
