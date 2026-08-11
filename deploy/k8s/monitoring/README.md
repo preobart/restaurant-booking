@@ -166,9 +166,60 @@ http://127.0.0.1:3000
 В Grafana откройте `Explore`, выберите datasource Prometheus и выполните:
 
 ```promql
-up{namespace="staging"}
+kube_deployment_status_replicas_available{namespace="staging"}
 ```
+
+## 6. Добавить постоянный alert доступности Deployment
+
+Правило использует метрики `kube-state-metrics`, поэтому application endpoint `/metrics` для него не нужен.
+
+Проверьте и примените:
+
+```bash
+kubectl apply --dry-run=server \
+  -f deploy/k8s/monitoring/20-staging-alert-rules.yaml
+
+kubectl apply \
+  -f deploy/k8s/monitoring/20-staging-alert-rules.yaml
+```
+
+Проверьте загрузку правила:
+
+```bash
+kubectl get prometheusrule restaurant-booking-staging -n monitoring
+```
+
+Правило `StagingDeploymentReplicasUnavailable` переходит в состояние `FIRING`, если любой Deployment в `staging` более двух минут имеет меньше доступных реплик, чем указано в `spec.replicas`.
+
+## 7. Проверить alert без остановки приложения
+
+Временное правило всегда истинно и не изменяет Deployment или Pod:
+
+```bash
+kubectl apply --dry-run=server \
+  -f deploy/k8s/monitoring/90-test-alert-rule.yaml
+
+kubectl apply \
+  -f deploy/k8s/monitoring/90-test-alert-rule.yaml
+```
+
+Подождите 1–2 минуты. В Prometheus откройте:
+
+```text
+http://127.0.0.1:9090/alerts?search=MonitoringPipelineTest
+```
+
+Ожидается состояние `FIRING` у `MonitoringPipelineTest`.
+
+После проверки обязательно удалите временное правило:
+
+```bash
+kubectl delete \
+  -f deploy/k8s/monitoring/90-test-alert-rule.yaml
+```
+
+Постоянное правило `restaurant-booking-staging` оставьте.
 
 ## Что будет дальше
 
-После появления трёх application targets добавляется первый `PrometheusRule`: недоступность Pod и тестовый alert. Затем создаётся небольшой Grafana dashboard для staging, после чего можно переходить к Application Load Balancer.
+После проверки состояния `FIRING` создаётся канал уведомлений в Yandex Monitoring и настраивается маршрутизация Alertmanager. Затем можно переходить к Application Load Balancer.
