@@ -6,7 +6,7 @@ Prometheus Operator установлен через Yandex Cloud Marketplace в 
 mond7en8jco98a3qtrg6
 ```
 
-Этот каталог добавляет сбор `/metrics` у трёх внутренних сервисов:
+Prometheus уже собирает Kubernetes-, node- и container-метрики. Дополнительно этот каталог содержит опциональную настройку сбора `/metrics` у трёх внутренних сервисов:
 
 ```text
 auth-service.staging.svc.cluster.local:8081/metrics
@@ -15,6 +15,24 @@ booking-service.staging.svc.cluster.local:8083/metrics
 ```
 
 Service не публикуются наружу. Prometheus получает доступ к их HTTP-портам через отдельную NetworkPolicy.
+
+## Текущее состояние application metrics
+
+Все три Service отвечают `404 Not Found` на `/metrics`. Это подтверждает, что ServiceMonitor обнаружил цели и сетевой доступ работает, но приложения пока не экспортируют Prometheus metrics.
+
+До добавления `/metrics` удалите опциональные объекты, чтобы не хранить постоянные ложные targets со значением `up = 0`:
+
+```bash
+kubectl delete servicemonitor restaurant-booking-staging \
+  -n monitoring \
+  --ignore-not-found
+
+kubectl delete networkpolicy allow-prometheus-scrape \
+  -n staging \
+  --ignore-not-found
+```
+
+Файлы `00-prometheus-scrape-network-policy.yaml` и `10-staging-service-monitor.yaml` остаются шаблоном на будущее. Не применяйте их снова, пока `/metrics` не начнёт возвращать HTTP `200`.
 
 ## 1. Проверить установку Marketplace
 
@@ -35,7 +53,9 @@ kubectl get pods \
 
 Если последняя команда не находит Pod, NetworkPolicy пока не применяйте: сначала уточните реальные метки Prometheus.
 
-## 2. Проверить манифесты на API-сервере
+## 2. Проверить опциональные манифесты на API-сервере
+
+Этот и следующие два раздела выполняются только после реализации `/metrics` в приложениях.
 
 ```bash
 kubectl apply --dry-run=server \
@@ -45,7 +65,7 @@ kubectl apply --dry-run=server \
 
 Dry-run должен распознать `ServiceMonitor`. Ошибка `no matches for kind ServiceMonitor` означает, что установка Operator ещё не завершилась или его CRD отсутствует.
 
-## 3. Разрешить scrape и создать ServiceMonitor
+## 3. Разрешить scrape и создать ServiceMonitor после появления `/metrics`
 
 ```bash
 kubectl apply \
@@ -70,7 +90,7 @@ environment=staging
 
 Все три Service используют имя порта `http`, поэтому одного ServiceMonitor достаточно.
 
-## 4. Проверить метрики в Yandex Monitoring
+## 4. Проверить application metrics в Yandex Monitoring
 
 Подождите 1–2 минуты после применения.
 

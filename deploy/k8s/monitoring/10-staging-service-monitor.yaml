@@ -1,3 +1,4 @@
+# Optional: apply only after the staging services expose HTTP 200 on /metrics.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
