@@ -174,7 +174,9 @@ kubectl rollout status \
 Проверьте объекты:
 
 ```bash
-kubectl get deployment,pods,service -n staging -o wide
+kubectl get deployment -n staging -o wide
+kubectl get pods -n staging -o wide
+kubectl get service -n staging -o wide
 kubectl get networkpolicy -n staging
 ```
 
