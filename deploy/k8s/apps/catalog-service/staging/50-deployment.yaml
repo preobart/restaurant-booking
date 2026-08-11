@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-service
+  namespace: staging
+  labels:
+    app.kubernetes.io/name: catalog-service
+    app.kubernetes.io/part-of: restaurant-booking
+    app.kubernetes.io/component: api
+    environment: staging
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalog-service
+      app.kubernetes.io/component: api
+      environment: staging
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: catalog-service
+        app.kubernetes.io/part-of: restaurant-booking
+        app.kubernetes.io/component: api
+        environment: staging
+    spec:
+      serviceAccountName: catalog-service
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        workload: general
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: catalog-service
+              app.kubernetes.io/component: api
+              environment: staging
+      containers:
+        - name: catalog-service
+          image: cr.yandex/crpfrtdcq05e9r2l43ro/catalog-service@sha256:cac707c2b6fdd4a182c2e85c29f8e7cffb76a741d155e756fb00373785b6770a
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8082
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: catalog-service
+            - secretRef:
+                name: catalog-service
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          volumeMounts:
+            - name: yandex-internal-root-ca
+              mountPath: /etc/yandex-ca
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: yandex-internal-root-ca
+          configMap:
+            name: yandex-internal-root-ca
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: tmp
+          emptyDir: {}
