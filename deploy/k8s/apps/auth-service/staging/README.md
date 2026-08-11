@@ -53,6 +53,19 @@ e6q1defjt7a1d78bg8kd
 e6qtimi50pl3hc33d1v4
 ```
 
+В Managed PostgreSQL расширения нельзя устанавливать SQL-командой из миграции. До первого запуска откройте:
+
+```text
+Managed Service for PostgreSQL
+-> кластер c9q3gaf98a21tn8dvb68
+-> Базы данных
+-> auth_staging
+-> Настроить
+-> Расширения PostgreSQL
+```
+
+Добавьте `pgcrypto`, сохраните изменения и дождитесь возвращения кластера в состояние `Running / Alive`. После установки команда `CREATE EXTENSION IF NOT EXISTS pgcrypto` из существующей миграции станет безопасной операцией без изменений. Это штатный способ для Managed PostgreSQL: [управление расширениями в Yandex Cloud](https://yandex.cloud/ru/docs/managed-postgresql/operations/extensions/cluster-extensions).
+
 В PostgreSQL-секрете проверьте только имя свойства. Если оно отличается от `postgresql_password`, исправьте `remoteRef.property` в `10-external-secret.yaml`. Значение свойства не копируйте и не выводите.
 
 ## 2. Проверить инфраструктуру Kubernetes
@@ -156,6 +169,61 @@ kubectl get pods -n staging -l app.kubernetes.io/component=migration
 kubectl get events -n staging --sort-by=.lastTimestamp
 ```
 
+### Восстановление после первого неуспешного запуска без pgcrypto
+
+Этот раздел применяется только если журнал содержит одновременно:
+
+```text
+permission denied to create extension "pgcrypto"
+Dirty database version 1
+```
+
+Ошибка произошла на первом операторе первой миграции, поэтому таблицы приложения ещё не создавались. Сначала включите `pgcrypto` через Yandex Cloud UI, как описано выше. Затем одноразово верните мигратор к чистой версии `0`:
+
+```bash
+kubectl delete job auth-service-migrations-force-zero \
+  -n staging \
+  --ignore-not-found
+
+kubectl apply \
+  -f deploy/k8s/apps/auth-service/staging/recovery/force-version-zero-job.yaml
+
+kubectl wait \
+  --for=condition=Complete \
+  job/auth-service-migrations-force-zero \
+  -n staging \
+  --timeout=2m
+
+kubectl logs job/auth-service-migrations-force-zero -n staging
+```
+
+Команда `force 0` не выполняет SQL-миграцию. Она только устанавливает в служебной таблице мигратора чистое состояние до версии `1`. Не используйте этот recovery Job после появления успешных миграций или данных.
+
+После успешного recovery удалите оба Job и заново выполните обычную миграцию:
+
+```bash
+kubectl delete job auth-service-migrations-force-zero \
+  -n staging \
+  --ignore-not-found
+
+kubectl delete job auth-service-migrations \
+  -n staging \
+  --ignore-not-found
+
+kubectl apply \
+  -f deploy/k8s/apps/auth-service/staging/40-migration-job.yaml
+
+kubectl wait \
+  --for=condition=Complete \
+  job/auth-service-migrations \
+  -n staging \
+  --timeout=10m
+
+kubectl logs job/auth-service-migrations -n staging
+```
+
+Ожидается `Complete 1/1` без `Dirty database` и без ошибки `pgcrypto`.
+
 ## 6. Развернуть auth-service
 
 Только после успешной миграции:
@@ -248,6 +316,8 @@ Staging начинается с одной реплики. PDB для единс
 3. выдать `lab-external-secrets` роль только на этот secret;
 4. создать ExternalSecret, Job миграции, Deployment и Service из того же шаблона;
 5. добавить только нужные сетевые направления.
+
+Чтобы не повторить ошибку первой миграции, `pgcrypto` можно заранее включить через UI во всех шести учебных базах. Это одноразовая настройка базы, а не отдельный Kubernetes-ресурс для каждого Deployment.
 
 Один JWT secret используется всеми тремя сервисами одного окружения:
 
