@@ -1,0 +1,89 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-alb-to-auth-service
+  namespace: staging
+  labels:
+    app.kubernetes.io/name: auth-service
+    app.kubernetes.io/part-of: restaurant-booking
+    app.kubernetes.io/component: ingress
+    environment: staging
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: auth-service
+      app.kubernetes.io/component: api
+      environment: staging
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.20.1.0/24
+        - ipBlock:
+            cidr: 10.20.2.0/24
+        - ipBlock:
+            cidr: 10.20.3.0/24
+      ports:
+        - protocol: TCP
+          port: 8081
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-alb-to-catalog-service
+  namespace: staging
+  labels:
+    app.kubernetes.io/name: catalog-service
+    app.kubernetes.io/part-of: restaurant-booking
+    app.kubernetes.io/component: ingress
+    environment: staging
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: catalog-service
+      app.kubernetes.io/component: api
+      environment: staging
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.20.1.0/24
+        - ipBlock:
+            cidr: 10.20.2.0/24
+        - ipBlock:
+            cidr: 10.20.3.0/24
+      ports:
+        - protocol: TCP
+          port: 8082
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-alb-to-booking-service
+  namespace: staging
+  labels:
+    app.kubernetes.io/name: booking-service
+    app.kubernetes.io/part-of: restaurant-booking
+    app.kubernetes.io/component: ingress
+    environment: staging
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: booking-service
+      app.kubernetes.io/component: api
+      environment: staging
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.20.1.0/24
+        - ipBlock:
+            cidr: 10.20.2.0/24
+        - ipBlock:
+            cidr: 10.20.3.0/24
+      ports:
+        - protocol: TCP
+          port: 8083

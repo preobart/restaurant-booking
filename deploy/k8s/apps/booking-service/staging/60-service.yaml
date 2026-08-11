@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/component: api
     environment: staging
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app.kubernetes.io/name: booking-service
     app.kubernetes.io/component: api
@@ -19,3 +19,4 @@ spec:
       protocol: TCP
       port: 8083
       targetPort: http
+      nodePort: 30083

@@ -22,7 +22,7 @@ auth-service
 - три минимальные NetworkPolicy;
 - одноразовый Job миграций;
 - один staging Pod `auth-service`;
-- внутренний `ClusterIP Service` на порту `8081`.
+- `NodePort Service` на порту `8081` с узловым портом `30081`; доступ к NodePort ограничивается группой безопасности узлов и используется только Gwin/ALB.
 
 ## Зафиксированные параметры
 
@@ -254,7 +254,7 @@ kubectl get networkpolicy -n staging
 
 - Deployment `1/1`;
 - один Pod `Running 1/1`;
-- Service имеет тип `ClusterIP`;
+- Service имеет тип `NodePort`, но не получает собственный публичный IP;
 - `EXTERNAL-IP` отсутствует;
 - Pod находится на узле с меткой `workload=general`.
 

@@ -26,6 +26,9 @@ Namespace Gwin: gwin-space
 Имя Marketplace-приложения: gwin
 IAM service account: lab-gwin
 Kubernetes service account: gwin
+IAM service account ID: ajekao68lsfas66foh5k
+IAM federation ID: ajeqroqpgpv7cajnnvn3
+ALB security group ID: enpdntuqp8q5v422beh1
 ```
 
 ## 1. Создать IAM service account для Gwin
@@ -201,20 +204,31 @@ kubectl get events -n gwin-space --sort-by=.lastTimestamp
 kubectl logs -n gwin-space -l app.kubernetes.io/name=gwin --all-containers --tail=200
 ```
 
-## Что сообщить для следующего шага
+## 8. Подготовленные Kubernetes-ресурсы
 
-После успешной установки понадобятся только несекретные идентификаторы:
+После успешной установки Gwin используются файлы:
 
 ```text
-ID IAM service account lab-gwin
-ID федерации lab-k8s-wlif
-ID группы безопасности lab-alb-staging
-ID lab-subnet-a
-ID lab-subnet-b
-ID lab-subnet-d
+deploy/k8s/apps/auth-service/staging/60-service.yaml
+deploy/k8s/apps/catalog-service/staging/60-service.yaml
+deploy/k8s/apps/booking-service/staging/60-service.yaml
+deploy/k8s/ingress/gwin/10-staging-network-policies.yaml
+deploy/k8s/ingress/gwin/20-staging-ingress.yaml
 ```
 
-На их основе будет сгенерирован готовый манифест входа с маршрутами:
+Три Service меняются с `ClusterIP` на `NodePort`:
+
+```text
+auth-service:    8081 -> 30081
+catalog-service: 8082 -> 30082
+booking-service: 8083 -> 30083
+```
+
+NodePort не делает Pod публичными сам по себе: у узлов нет внешних IP, а группа `lab-k8s-nodes` принимает эти порты только от `lab-alb-staging`.
+
+Отдельные NetworkPolicy разрешают трафик к API Pod только из трёх подсетей `lab-vpc` и только на порт конкретного сервиса.
+
+Ingress создаёт один динамический публичный IP и маршрутизирует:
 
 ```text
 /api/auth        -> auth-service:8081
@@ -222,7 +236,116 @@ ID lab-subnet-d
 /api/bookings    -> booking-service:8083
 ```
 
-Сначала вход будет HTTP и ограничен вашим `/32`. После проверки добавятся Certificate Manager, DNS, HTTPS и автоматический redirect с HTTP на HTTPS.
+Аннотация подсетей намеренно отсутствует. По умолчанию Gwin использует подсети Managed Kubernetes-кластера, поэтому их ID в первом манифесте не требуются.
+
+## 9. Проверить манифесты на API-сервере
+
+Эти команды ничего не создают и не изменяют:
+
+```bash
+kubectl apply --dry-run=server \
+  -f deploy/k8s/apps/auth-service/staging/60-service.yaml \
+  -f deploy/k8s/apps/catalog-service/staging/60-service.yaml \
+  -f deploy/k8s/apps/booking-service/staging/60-service.yaml \
+  -f deploy/k8s/ingress/gwin/10-staging-network-policies.yaml \
+  -f deploy/k8s/ingress/gwin/20-staging-ingress.yaml
+```
+
+Dry-run проверит в том числе, свободны ли NodePort `30081`, `30082` и `30083`.
+
+## 10. Открыть бэкенды только для ALB
+
+Сначала примените Service и NetworkPolicy без Ingress:
+
+```bash
+kubectl apply \
+  -f deploy/k8s/apps/auth-service/staging/60-service.yaml \
+  -f deploy/k8s/apps/catalog-service/staging/60-service.yaml \
+  -f deploy/k8s/apps/booking-service/staging/60-service.yaml \
+  -f deploy/k8s/ingress/gwin/10-staging-network-policies.yaml
+```
+
+Проверьте:
+
+```bash
+kubectl get service \
+  auth-service catalog-service booking-service \
+  -n staging \
+  -o wide
+
+kubectl get networkpolicy \
+  -n staging \
+  -l app.kubernetes.io/component=ingress
+```
+
+Ожидаются `TYPE=NodePort` и порты `8081:30081`, `8082:30082`, `8083:30083`. Поле `EXTERNAL-IP` остаётся пустым.
+
+## 11. Создать Application Load Balancer
+
+Применение следующего файла запускает создание оплачиваемого ALB и динамического публичного IP:
+
+```bash
+kubectl apply \
+  -f deploy/k8s/ingress/gwin/20-staging-ingress.yaml
+```
+
+Следите за состоянием:
+
+```bash
+kubectl get ingress restaurant-booking-staging \
+  -n staging \
+  --watch
+```
+
+Создание может занимать несколько минут. Завершите `watch` сочетанием `Ctrl+C`, когда в `ADDRESS` появится IPv4-адрес.
+
+После этого выполните:
+
+```bash
+kubectl describe ingress restaurant-booking-staging -n staging
+
+kubectl get events \
+  -n staging \
+  --sort-by=.lastTimestamp
+```
+
+В UI Yandex Cloud откройте `Application Load Balancer`. Должен появиться один балансировщик, созданный Gwin, с группой безопасности `lab-alb-staging`. Не редактируйте его или дочерние ресурсы вручную: источником конфигурации является Kubernetes Ingress.
+
+## 12. Проверить HTTP-вход
+
+Возьмите значение `ADDRESS`:
+
+```bash
+kubectl get ingress restaurant-booking-staging -n staging
+```
+
+С локального компьютера проверьте маршрут Catalog:
+
+```bash
+curl -i http://<ADDRESS>/api/restaurants/
+```
+
+Ответ приложения с любым ожидаемым HTTP-кодом подтверждает маршрутизацию. `502` или `503` означает проблему между ALB и Kubernetes-бэкендом; в этом случае сохраните диагностику, не меняя ALB вручную:
+
+```bash
+kubectl describe ingress restaurant-booking-staging -n staging
+kubectl get service -n staging
+kubectl get endpointslice -n staging
+kubectl get events -n staging --sort-by=.lastTimestamp
+kubectl logs -n gwin-space deployment/gwin --tail=200
+```
+
+## Что сообщить для следующего шага
+
+После успешного создания HTTP-входа пришлите:
+
+```text
+ADDRESS созданного Ingress
+вывод kubectl describe ingress restaurant-booking-staging -n staging
+результат curl к /api/restaurants/
+```
+
+После проверки HTTP будут добавлены статический публичный IP, Certificate Manager, DNS, HTTPS и автоматический redirect с HTTP на HTTPS.
 
 ## Как остановить этот слой
 

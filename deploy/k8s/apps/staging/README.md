@@ -14,7 +14,7 @@ booking-service -> Managed PostgreSQL / booking_staging
 booking-service -> catalog-service.staging.svc.cluster.local:8082
 ```
 
-Оба сервиса остаются внутренними `ClusterIP`. Публичные IP, LoadBalancer и Ingress на этом шаге не создаются.
+Первоначально оба сервиса создавались внутренними `ClusterIP`. На следующем этапе Gwin они переводятся в `NodePort`, доступный только Application Load Balancer через ограниченные группы безопасности.
 
 ## Зафиксированные параметры
 
@@ -202,7 +202,7 @@ kubectl get endpointslice -n staging -l kubernetes.io/service-name=booking-servi
 Ожидается:
 
 - три API Deployment в staging имеют `READY 1/1` с учётом уже работающего Auth;
-- оба новых Service имеют тип `ClusterIP` и не имеют `EXTERNAL-IP`;
+- оба новых Service имеют тип `NodePort`, но по-прежнему не имеют собственного `EXTERNAL-IP`;
 - каждый EndpointSlice содержит один адрес Pod;
 - Booking Pod имеет метку `networking.restaurant-booking/access-catalog-service=true`;
 - NetworkPolicy разрешает Booking обращаться к Catalog на `8082`, но не открывает Catalog всем Pod namespace.
