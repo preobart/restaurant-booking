@@ -178,31 +178,33 @@ permission denied to create extension "pgcrypto"
 Dirty database version 1
 ```
 
-Ошибка произошла на первом операторе первой миграции, поэтому таблицы приложения ещё не создавались. Сначала включите `pgcrypto` через Yandex Cloud UI, как описано выше. Затем одноразово верните мигратор к чистой версии `0`:
+Ошибка произошла на первом операторе первой миграции, поэтому таблицы приложения ещё не создавались. Сначала включите `pgcrypto` через Yandex Cloud UI, как описано выше. Затем одноразово верните мигратор в состояние `NilVersion = -1`, которое означает «ни одна миграция ещё не применена»:
 
 ```bash
-kubectl delete job auth-service-migrations-force-zero \
+kubectl delete job auth-service-migrations-reset-to-nil \
   -n staging \
   --ignore-not-found
 
 kubectl apply \
-  -f deploy/k8s/apps/auth-service/staging/recovery/force-version-zero-job.yaml
+  -f deploy/k8s/apps/auth-service/staging/recovery/reset-to-nil-version-job.yaml
 
 kubectl wait \
   --for=condition=Complete \
-  job/auth-service-migrations-force-zero \
+  job/auth-service-migrations-reset-to-nil \
   -n staging \
   --timeout=2m
 
-kubectl logs job/auth-service-migrations-force-zero -n staging
+kubectl logs job/auth-service-migrations-reset-to-nil -n staging
 ```
 
-Команда `force 0` не выполняет SQL-миграцию. Она только устанавливает в служебной таблице мигратора чистое состояние до версии `1`. Не используйте этот recovery Job после появления успешных миграций или данных.
+Команда `force -- -1` не выполняет SQL-миграцию. Для PostgreSQL она очищает запись в служебной таблице мигратора и снимает флаг `dirty`. Разделитель `--` нужен, чтобы CLI воспринял отрицательное число как версию, а не как параметр командной строки. Не используйте этот recovery Job после появления успешных миграций или данных.
+
+Версия `0` здесь недопустима: мигратор считает её настоящей версией и при следующем `up` пытается найти файл `0.down.sql`.
 
 После успешного recovery удалите оба Job и заново выполните обычную миграцию:
 
 ```bash
-kubectl delete job auth-service-migrations-force-zero \
+kubectl delete job auth-service-migrations-reset-to-nil \
   -n staging \
   --ignore-not-found
 

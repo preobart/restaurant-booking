@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: auth-service-migrations-force-zero
+  name: auth-service-migrations-reset-to-nil
   namespace: staging
   labels:
     app.kubernetes.io/name: auth-service
@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/component: migration-recovery
     environment: staging
   annotations:
-    restaurant-booking/recovery-purpose: reset-first-failed-migration-to-clean-version-zero
+    restaurant-booking/recovery-purpose: reset-first-failed-migration-to-nil-version
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 120
@@ -34,7 +34,7 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: force-version-zero
+        - name: reset-to-nil-version
           image: cr.yandex/crpfrtdcq05e9r2l43ro/auth-service@sha256:01025f039ba3897b6ff2b02bbdced4fc312f5ce4533f757367523c06b49cacbf
           imagePullPolicy: IfNotPresent
           command:
@@ -44,7 +44,8 @@ spec:
             - -database
             - $(AUTH_DB_DSN)
             - force
-            - "0"
+            - --
+            - "-1"
           env:
             - name: AUTH_DB_DSN
               valueFrom:
