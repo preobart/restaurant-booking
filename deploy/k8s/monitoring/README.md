@@ -169,58 +169,25 @@ http://127.0.0.1:3000
 kube_deployment_status_replicas_available{namespace="staging"}
 ```
 
-## 6. Добавить постоянный alert доступности Deployment
+## 6. Понять два независимых контура правил
 
-Правило использует метрики `kube-state-metrics`, поэтому application endpoint `/metrics` для него не нужен.
+`PrometheusRule` в Kubernetes вычисляет локальный Prometheus. Такой alert виден на локальной странице Prometheus, но сам по себе не передаётся в Managed Alertmanager и не вызывает письмо Yandex Monitoring.
 
-Проверьте и примените:
+Для уведомлений Yandex Cloud правила загружаются отдельными `.yml`-файлами непосредственно в Managed Prometheus workspace. Именно эти правила вычисляет Yandex Cloud, после чего Managed Alertmanager направляет уведомления в созданный канал.
 
-```bash
-kubectl apply --dry-run=server \
-  -f deploy/k8s/monitoring/20-staging-alert-rules.yaml
-
-kubectl apply \
-  -f deploy/k8s/monitoring/20-staging-alert-rules.yaml
-```
-
-Проверьте загрузку правила:
+Если старые локальные правила уже применены, удалите их, чтобы не видеть два одноимённых alert из разных контуров:
 
 ```bash
-kubectl get prometheusrule restaurant-booking-staging -n monitoring
+kubectl delete prometheusrule \
+  restaurant-booking-monitoring-test \
+  restaurant-booking-staging \
+  -n monitoring \
+  --ignore-not-found
 ```
 
-Правило `StagingDeploymentReplicasUnavailable` переходит в состояние `FIRING`, если любой Deployment в `staging` более двух минут имеет меньше доступных реплик, чем указано в `spec.replicas`.
+Удаление этих двух правил не удаляет Prometheus, метрики, Deployment или Pod.
 
-## 7. Проверить alert без остановки приложения
-
-Временное правило всегда истинно и не изменяет Deployment или Pod:
-
-```bash
-kubectl apply --dry-run=server \
-  -f deploy/k8s/monitoring/90-test-alert-rule.yaml
-
-kubectl apply \
-  -f deploy/k8s/monitoring/90-test-alert-rule.yaml
-```
-
-Подождите 1–2 минуты. В Prometheus откройте:
-
-```text
-http://127.0.0.1:9090/alerts?search=MonitoringPipelineTest
-```
-
-Ожидается состояние `FIRING` у `MonitoringPipelineTest`.
-
-После проверки обязательно удалите временное правило:
-
-```bash
-kubectl delete \
-  -f deploy/k8s/monitoring/90-test-alert-rule.yaml
-```
-
-Постоянное правило `restaurant-booking-staging` оставьте.
-
-## 8. Создать канал уведомлений Yandex Monitoring
+## 7. Создать канал уведомлений Yandex Monitoring
 
 В каталоге с workspace откройте:
 
@@ -238,7 +205,7 @@ Monitoring -> Каналы уведомлений -> Создать канал
 
 Получатель должен иметь роль `monitoring.viewer` на каталог и включённые уведомления Monitoring в настройках своего аккаунта.
 
-## 9. Загрузить конфигурацию Managed Alertmanager
+## 8. Загрузить конфигурацию Managed Alertmanager
 
 Файл `deploy/monitoring/yandex/alertmanager.yaml` маршрутизирует alerts с меткой `severity="warning"` в канал `lab-alerts-email`. Alerts без этой метки никуда не отправляются.
 
@@ -255,21 +222,45 @@ Monitoring -> Prometheus -> workspace mond7en8jco98a3qtrg6
 deploy/monitoring/yandex/alertmanager.yaml
 ```
 
-После успешной загрузки повторно примените временное тестовое правило:
+После загрузки убедитесь, что у получателя `lab-email` найден канал `lab-alerts-email`. Получатель `null` без канала нужен как маршрут по умолчанию и не является ошибкой.
 
-```bash
-kubectl apply \
-  -f deploy/k8s/monitoring/90-test-alert-rule.yaml
+## 9. Загрузить тестовое правило в Managed Prometheus
+
+Откройте:
+
+```text
+Monitoring -> Поставка и хранение -> Prometheus
+-> workspace mond7en8jco98a3qtrg6 -> Правила
 ```
 
-Подождите до двух минут и проверьте письмо. После получения уведомления удалите тестовое правило:
+Нажмите `Добавить файл` и выберите:
 
-```bash
-kubectl delete \
-  -f deploy/k8s/monitoring/90-test-alert-rule.yaml
+```text
+deploy/monitoring/yandex/rules/monitoring-test.yml
 ```
 
-При удалении тестового правила может прийти уведомление о разрешении alert — это ожидаемо.
+Файл содержит всегда истинное выражение `vector(1)` и не изменяет приложения или кластер. Подождите 1–2 минуты и в этом же workspace откройте вкладку `Алерты`. `MonitoringPipelineTest` должен перейти в `FIRING`, после чего должно прийти письмо в канал `lab-alerts-email`.
+
+Если alert находится в `FIRING`, но письма нет, проверьте:
+
+- что это вкладка `Алерты` именно Managed Prometheus workspace, а не локальная страница `127.0.0.1:9090`;
+- что в конфигурации Alertmanager получатель `lab-email` связан с существующим каналом `lab-alerts-email`;
+- папки `Спам`, `Рассылки` и задержку доставки в несколько минут;
+- что email-получатель канала имеет доступ к каталогу и включён в настройках канала.
+
+После получения письма удалите `monitoring-test.yml` во вкладке `Правила` через меню файла. Уведомление о разрешении alert после удаления ожидаемо.
+
+## 10. Загрузить постоянное правило доступности staging
+
+В ту же вкладку `Правила` добавьте файл:
+
+```text
+deploy/monitoring/yandex/rules/staging-alerts.yml
+```
+
+Правило использует уже поступающие метрики `kube-state-metrics`, поэтому `/metrics` в приложениях для него не нужен. `StagingDeploymentReplicasUnavailable` переходит в `FIRING`, если любой Deployment в `staging` более двух минут имеет меньше доступных реплик, чем указано в `spec.replicas`.
+
+Постоянный файл `staging-alerts.yml` оставьте в workspace.
 
 ## Что будет дальше
 
