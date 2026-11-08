@@ -14,7 +14,7 @@ import (
 
 	"restaurant-booking/booking-service/config"
 	"restaurant-booking/booking-service/docs"
-	catalogclient "restaurant-booking/booking-service/internal/adapter/catalog-client"
+	"restaurant-booking/booking-service/internal/adapter/catalog-client"
 	"restaurant-booking/booking-service/internal/adapter/postgres"
 	httpcontroller "restaurant-booking/booking-service/internal/controller/http"
 	"restaurant-booking/booking-service/internal/features/booking/availability"
@@ -24,6 +24,8 @@ import (
 	bookinglist "restaurant-booking/booking-service/internal/features/booking/list"
 	"restaurant-booking/booking-service/pkg/jwt"
 )
+
+var revision = "local"
 
 func main() {
 	cfg, err := config.LoadConfig()
@@ -65,6 +67,22 @@ func AppRun(ctx context.Context, cfg config.Config) error {
 	apiRouter := httpcontroller.Router(routes)
 
 	root := chi.NewRouter()
+	root.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-App-Revision", revision)
+			next.ServeHTTP(w, r)
+		})
+	})
+	root.Get("/ready", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+		defer cancel()
+		if err := pgPool.Pgx().Ping(ctx); err != nil {
+			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintln(w, `{"status":"ready"}`)
+	})
 	root.Get("/swagger/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/yaml")
 		w.Write(docs.OpenAPISpec)
@@ -72,6 +90,11 @@ func AppRun(ctx context.Context, cfg config.Config) error {
 	root.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/openapi.yaml"),
 	))
+	root.Get("/docs/booking/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/yaml")
+		_, _ = w.Write(docs.OpenAPISpec)
+	})
+	root.Get("/docs/booking/*", httpSwagger.Handler(httpSwagger.URL("/docs/booking/openapi.yaml")))
 	root.Mount("/", apiRouter)
 
 	server := &http.Server{
@@ -89,6 +112,7 @@ func AppRun(ctx context.Context, cfg config.Config) error {
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
 
 	select {
 	case sig := <-sigCh:

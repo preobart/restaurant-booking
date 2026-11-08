@@ -27,6 +27,8 @@ import (
 const rabbitUserExchangeName = "restaurant.user"
 const rabbitUserRoutingKey = "user.registered"
 
+var revision = "local"
+
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -41,7 +43,6 @@ func main() {
 func AppRun(ctx context.Context, cfg config.Config) error {
 	pgPool, err := postgres.New(ctx, cfg.Postgres)
 	if err != nil {
-		pgPool.Close()
 		return fmt.Errorf("postgres.New: %w", err)
 	}
 
@@ -56,8 +57,12 @@ func AppRun(ctx context.Context, cfg config.Config) error {
 	}
 
 	jwtDur, err := time.ParseDuration(cfg.JWTExpires)
-	if err != nil {
-		jwtDur = 24 * time.Hour
+	if err != nil || jwtDur <= 0 {
+		if rmqPublisher != nil {
+			_ = rmqPublisher.Close()
+		}
+		pgPool.Close()
+		return fmt.Errorf("JWT_EXPIRES must be a positive duration")
 	}
 	jwtCfg := jwt.Config{
 		Secret:  []byte(cfg.JWTSecret),
@@ -88,6 +93,22 @@ func AppRun(ctx context.Context, cfg config.Config) error {
 	apiRouter := httpcontroller.Router(routes)
 
 	root := chi.NewRouter()
+	root.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-App-Revision", revision)
+			next.ServeHTTP(w, r)
+		})
+	})
+	root.Get("/ready", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+		defer cancel()
+		if err := pgPool.Pgx().Ping(ctx); err != nil {
+			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintln(w, `{"status":"ready"}`)
+	})
 	root.Get("/swagger/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/yaml")
 		w.Write(docs.OpenAPISpec)
@@ -95,6 +116,11 @@ func AppRun(ctx context.Context, cfg config.Config) error {
 	root.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/openapi.yaml"),
 	))
+	root.Get("/docs/auth/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/yaml")
+		_, _ = w.Write(docs.OpenAPISpec)
+	})
+	root.Get("/docs/auth/*", httpSwagger.Handler(httpSwagger.URL("/docs/auth/openapi.yaml")))
 	root.Mount("/", apiRouter)
 
 	server := &http.Server{
@@ -112,6 +138,7 @@ func AppRun(ctx context.Context, cfg config.Config) error {
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
 
 	select {
 	case sig := <-sigCh:

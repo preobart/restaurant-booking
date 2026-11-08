@@ -10,10 +10,10 @@ import (
 )
 
 type Config struct {
-	Postgres    postgres.Config
-	HTTPAddr    string
-	JWTSecret   string
-	JWTExpires  string
+	Postgres   postgres.Config
+	HTTPAddr   string
+	JWTSecret  string
+	JWTExpires string
 	RabbitMQURL string
 }
 
@@ -26,9 +26,9 @@ func LoadConfig() (Config, error) {
 		Postgres: postgres.Config{
 			DBDSN: getEnv("AUTH_DB_DSN", ""),
 		},
-		HTTPAddr:    getEnv("AUTH_HTTP_ADDR", ":8081"),
-		JWTSecret:   getEnv("JWT_SECRET", "dev-secret-change-me"),
-		JWTExpires:  getEnv("JWT_EXPIRES", "24h"),
+		HTTPAddr:   getEnv("AUTH_HTTP_ADDR", ":8081"),
+		JWTSecret:  getEnv("JWT_SECRET", "dev-secret-change-me"),
+		JWTExpires: getEnv("JWT_EXPIRES", "24h"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", ""),
 	}, nil
 }
