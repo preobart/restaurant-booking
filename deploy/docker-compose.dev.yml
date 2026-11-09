@@ -95,6 +95,7 @@ services:
       dockerfile: deploy/Dockerfile.dev
       args:
         SERVICE: auth-service
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
     restart: always
     container_name: restaurant-booking-auth-service
     env_file:
@@ -130,6 +131,7 @@ services:
       dockerfile: deploy/Dockerfile.dev
       args:
         SERVICE: catalog-service
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
     restart: always
     container_name: restaurant-booking-catalog-service
     env_file:
@@ -162,6 +164,7 @@ services:
       dockerfile: deploy/Dockerfile.dev
       args:
         SERVICE: booking-service
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
     restart: always
     container_name: restaurant-booking-booking-service
     env_file:
