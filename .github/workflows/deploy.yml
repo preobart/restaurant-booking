@@ -1,0 +1,39 @@
+# Based on https://github.com/appleboy/ssh-action#using-private-key-authentication
+name: Deploy backend
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-vm
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'preobart/restaurant-booking' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Deploy to Yandex Cloud VM
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+        with:
+          host: ${{ vars.VM_HOST }}
+          username: ${{ vars.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          fingerprint: ${{ secrets.VM_FINGERPRINT }}
+          envs: DEPLOY_SHA
+          command_timeout: 25m
+          script: |
+            set -eu
+            cd /opt/restaurant-booking
+            git fetch origin main
+            git checkout --detach "$DEPLOY_SHA"
+            COMPOSE_PARALLEL_LIMIT=1 docker compose --env-file .env -f deploy/docker-compose.dev.yml up -d --build --wait --wait-timeout 300
+            printf '%s\n' "$DEPLOY_SHA" > .deployed-revision
